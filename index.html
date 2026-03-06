@@ -393,9 +393,21 @@
         </div>
       </div>
     </div>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;color:#cbd5e1">Configuração LinkedIn (manual, 1x)</summary>
+      <label>Access token</label>
+      <input id="liAccessToken" type="password" placeholder="AQX..." />
+      <label>Author URN (opcional)</label>
+      <input id="liAuthorUrn" placeholder="urn:li:person:xxxx" />
+      <div class="row" style="margin-top:8px">
+        <button id="btnValidateLinkedin" class="btn-ghost">Validar token</button>
+        <button id="btnClearLinkedin" class="btn-ghost">Limpar</button>
+      </div>
+      <div class="muted" id="liStatus" style="margin-top:6px">Sem validação ainda.</div>
+    </details>
     <div class="row" style="margin-top:10px">
       <button id="btnPostModalClose" class="btn-ghost">Fechar</button>
-      <button id="btnPostLinkedinStub" class="btn-primary">Postar no LinkedIn (em breve)</button>
+      <button id="btnPostLinkedin" class="btn-primary">Postar no LinkedIn</button>
     </div>
   </div>
 </div>
@@ -411,6 +423,10 @@
       model: 'gpt-5.1-mini',
       remember: true,
       streaming: true
+    },
+    linkedin: {
+      accessToken: '',
+      authorUrn: ''
     },
     config: {
       bgColor: '#ffffff',
@@ -516,6 +532,7 @@
       const saved = JSON.parse(raw);
       if(saved?.config) state.config = Object.assign({}, state.config, saved.config);
       if(saved?.ai) state.ai = Object.assign({}, state.ai, saved.ai);
+      if(saved?.linkedin) state.linkedin = Object.assign({}, state.linkedin, saved.linkedin);
       if(Array.isArray(saved?.slides) && saved.slides.length) state.slides = saved.slides;
       if(typeof saved?.current === 'number') state.current = Math.max(0, saved.current);
       if(saved?.theme) state.theme = saved.theme;
@@ -733,6 +750,8 @@
     if($('aiModel')) $('aiModel').value = state.ai.model || '';
     if($('aiRemember')) $('aiRemember').checked = !!state.ai.remember;
     if($('aiStreaming')) $('aiStreaming').checked = state.ai.streaming !== false;
+    if($('liAccessToken')) $('liAccessToken').value = state.linkedin.accessToken || '';
+    if($('liAuthorUrn')) $('liAuthorUrn').value = state.linkedin.authorUrn || '';
   }
 
   function bind(){
@@ -931,6 +950,8 @@
       if(!$('postCaption').value.trim()){
         $('postCaption').value = localCaptionFallback();
       }
+      $('liAccessToken').value = state.linkedin.accessToken || '';
+      $('liAuthorUrn').value = state.linkedin.authorUrn || '';
       refreshPostPreview();
       $('postModal').style.display = 'flex';
     };
@@ -965,9 +986,46 @@
       refreshPostPreview();
       setStatus('Legenda refinada');
     };
-    $('btnPostLinkedinStub').onclick = ()=>{
-      setStatus('Fluxo de conexão LinkedIn será o próximo passo.');
-      alert('Próximo passo: conectar OAuth do LinkedIn (client id/secret/redirect).');
+
+    $('btnValidateLinkedin').onclick = async ()=>{
+      state.linkedin.accessToken = $('liAccessToken').value.trim();
+      state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
+      persist();
+      $('liStatus').textContent = 'Validando token...';
+      try{
+        const data = await validateLinkedinToken();
+        $('liAuthorUrn').value = state.linkedin.authorUrn || '';
+        persist();
+        $('liStatus').textContent = `Token OK · ${data?.name || data?.email || 'usuário autenticado'}`;
+        setStatus('LinkedIn conectado');
+      } catch(err){
+        $('liStatus').textContent = 'Falha na validação: ' + err.message;
+        setStatus('Falha ao validar LinkedIn');
+      }
+    };
+
+    $('btnClearLinkedin').onclick = ()=>{
+      state.linkedin.accessToken = '';
+      state.linkedin.authorUrn = '';
+      $('liAccessToken').value = '';
+      $('liAuthorUrn').value = '';
+      $('liStatus').textContent = 'Credenciais limpas.';
+      persist();
+    };
+
+    $('btnPostLinkedin').onclick = async ()=>{
+      state.linkedin.accessToken = $('liAccessToken').value.trim();
+      state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
+      persist();
+      setStatus('Publicando no LinkedIn...');
+      try{
+        await postToLinkedin();
+        $('liStatus').textContent = 'Post publicado com sucesso.';
+        setStatus('Publicado no LinkedIn');
+      } catch(err){
+        $('liStatus').textContent = 'Erro ao publicar: ' + err.message;
+        setStatus('Erro no post do LinkedIn');
+      }
     };
 
     $('btnImportOpen').onclick = ()=> $('importModal').style.display='flex';
@@ -1163,6 +1221,58 @@
       text = data.output.flatMap(o => o.content || []).filter(p => p.type === 'output_text').map(p => p.text).join('');
     }
     return text.trim() || localCaptionFallback(extraInstruction);
+  }
+
+  async function linkedinApi(path, options = {}){
+    const token = state.linkedin.accessToken || '';
+    if(!token) throw new Error('Sem token LinkedIn');
+    const res = await fetch(`https://api.linkedin.com${path}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Restli-Protocol-Version': '2.0.0',
+        ...(options.headers || {})
+      }
+    });
+    if(!res.ok){
+      const txt = await res.text();
+      throw new Error(`LinkedIn ${res.status}: ${txt.slice(0,240)}`);
+    }
+    if(res.status === 204) return null;
+    return res.json();
+  }
+
+  async function validateLinkedinToken(){
+    const data = await linkedinApi('/v2/userinfo', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+    const personId = data?.sub || '';
+    if(personId && !state.linkedin.authorUrn){
+      state.linkedin.authorUrn = `urn:li:person:${personId}`;
+    }
+    return data;
+  }
+
+  async function postToLinkedin(){
+    const author = state.linkedin.authorUrn || '';
+    if(!author) throw new Error('Author URN não definido');
+    const text = ($('postCaption').value || '').trim();
+    if(!text) throw new Error('Legenda vazia');
+
+    const payload = {
+      author,
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text },
+          shareMediaCategory: 'NONE'
+        }
+      },
+      visibility: {
+        'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC'
+      }
+    };
+
+    return linkedinApi('/v2/ugcPosts', { method: 'POST', body: JSON.stringify(payload) });
   }
 
   function parseImport(text){
