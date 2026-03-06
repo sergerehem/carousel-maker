@@ -99,6 +99,15 @@
 
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
     .modal{width:min(900px,100%);background:#111827;border:1px solid #374151;border-radius:12px;padding:14px}
+    .post-modal{width:min(1200px,100%)}
+    .post-grid{display:grid;grid-template-columns:1.25fr .9fr;gap:12px}
+    .post-box{background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:10px}
+    .post-preview-card{background:#fff;color:#111827;border-radius:10px;border:1px solid #d1d5db;padding:14px;max-width:460px}
+    .post-meta{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    .post-avatar{width:34px;height:34px;border-radius:999px;background:#e5e7eb;display:grid;place-items:center;font-weight:700;color:#6b7280}
+    .post-name{font-weight:700;font-size:14px}
+    .post-handle{font-size:12px;color:#6b7280}
+    .post-text{white-space:pre-wrap;font-size:15px;line-height:1.45}
 
     @media (max-width:1100px){
       .app{grid-template-columns:1fr}
@@ -269,6 +278,7 @@
       <div class="muted">Formato: LinkedIn 4:5 (1080x1350)</div>
       <div class="toolbar-right">
         <div class="muted" id="status" style="display:flex;align-items:center;justify-content:flex-end">Pronto</div>
+        <button id="btnPostComposer" class="btn-ghost">Post LinkedIn</button>
         <button id="btnExport" class="btn-primary">Exportar PDF (4:5)</button>
       </div>
     </div>
@@ -349,6 +359,43 @@
     <div class="row" style="margin-top:10px">
       <button id="btnAICancel" class="btn-ghost">Cancelar</button>
       <button id="btnAIApply" class="btn-primary">Gerar agora</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Post LinkedIn -->
+<div class="modal-backdrop" id="postModal">
+  <div class="modal post-modal">
+    <h3 style="margin:0 0 8px">Formatador de postagem do LinkedIn</h3>
+    <div class="post-grid">
+      <div class="post-box">
+        <div class="row" style="margin-bottom:8px">
+          <button id="btnGenerateCaption" class="btn-primary">Gerar legenda com IA</button>
+          <button id="btnCopyCaption" class="btn-ghost">Copiar legenda</button>
+        </div>
+        <textarea id="postCaption" style="min-height:430px" placeholder="Escreva ou gere sua legenda..."></textarea>
+        <div class="row" style="margin-top:8px">
+          <input id="postPrompt" placeholder="Instrução extra para IA (tom, objetivo, CTA)..." />
+          <button id="btnRefineCaption" class="btn-ghost">Refinar</button>
+        </div>
+      </div>
+      <div class="post-box">
+        <div class="muted" style="margin-bottom:6px">Prévia do post</div>
+        <div class="post-preview-card">
+          <div class="post-meta">
+            <div class="post-avatar" id="postAvatar">A</div>
+            <div>
+              <div class="post-name" id="postName">AgentMembers</div>
+              <div class="post-handle" id="postHandle">agentmembers.com</div>
+            </div>
+          </div>
+          <div class="post-text" id="postPreviewText">Sua legenda aparece aqui...</div>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnPostModalClose" class="btn-ghost">Fechar</button>
+      <button id="btnPostLinkedinStub" class="btn-primary">Postar no LinkedIn (em breve)</button>
     </div>
   </div>
 </div>
@@ -645,6 +692,10 @@
       businessLogo.textContent = initials;
     }
 
+    if($('postName')) $('postName').textContent = state.config.creatorName || 'Seu nome';
+    if($('postHandle')) $('postHandle').textContent = state.config.creatorHandle || 'seusite.com';
+    if($('postAvatar')) $('postAvatar').textContent = getInitials(state.config.creatorName || 'U');
+
     renderNav();
     persist();
   }
@@ -868,6 +919,57 @@
       }
     };
 
+    const refreshPostPreview = ()=>{
+      const caption = $('postCaption').value.trim();
+      $('postPreviewText').textContent = caption || 'Sua legenda aparece aqui...';
+      $('postName').textContent = state.config.creatorName || 'Seu nome';
+      $('postHandle').textContent = state.config.creatorHandle || 'seusite.com';
+      $('postAvatar').textContent = getInitials(state.config.creatorName || 'U');
+    };
+
+    $('btnPostComposer').onclick = ()=>{
+      if(!$('postCaption').value.trim()){
+        $('postCaption').value = localCaptionFallback();
+      }
+      refreshPostPreview();
+      $('postModal').style.display = 'flex';
+    };
+    $('btnPostModalClose').onclick = ()=> $('postModal').style.display = 'none';
+    $('postCaption').addEventListener('input', refreshPostPreview);
+    $('btnCopyCaption').onclick = async ()=>{
+      try{
+        await navigator.clipboard.writeText($('postCaption').value || '');
+        setStatus('Legenda copiada');
+      } catch(_e){
+        setStatus('Não foi possível copiar');
+      }
+    };
+    $('btnGenerateCaption').onclick = async ()=>{
+      setStatus('Gerando legenda...');
+      try{
+        $('postCaption').value = await generateLinkedinCaption($('postPrompt').value.trim());
+      } catch(_e){
+        $('postCaption').value = localCaptionFallback($('postPrompt').value.trim());
+      }
+      refreshPostPreview();
+      setStatus('Legenda gerada');
+    };
+    $('btnRefineCaption').onclick = async ()=>{
+      setStatus('Refinando legenda...');
+      try{
+        const extra = `Refine esta legenda: ${$('postCaption').value}\nPedido: ${$('postPrompt').value || 'melhore clareza e hook'}`;
+        $('postCaption').value = await generateLinkedinCaption(extra);
+      } catch(_e){
+        // mantém atual
+      }
+      refreshPostPreview();
+      setStatus('Legenda refinada');
+    };
+    $('btnPostLinkedinStub').onclick = ()=>{
+      setStatus('Fluxo de conexão LinkedIn será o próximo passo.');
+      alert('Próximo passo: conectar OAuth do LinkedIn (client id/secret/redirect).');
+    };
+
     $('btnImportOpen').onclick = ()=> $('importModal').style.display='flex';
     $('btnImportCancel').onclick = ()=> $('importModal').style.display='none';
 
@@ -1016,6 +1118,51 @@
       paragraph: String(s?.paragraph || '').trim(),
       cta: String(s?.cta || 'Acesse playvsl.com').trim()
     }));
+  }
+
+  function buildCaptionContext(){
+    const slides = state.slides || [];
+    const first = slides[0] || {};
+    const middle = slides.slice(1, -1).map(s => `- ${s.title || ''}: ${s.paragraph || ''}`).join('\n');
+    const last = slides[slides.length-1] || {};
+    return `Tópico: ${$('topic').value || first.title || ''}\nSlide 1: ${first.title || ''} | ${first.paragraph || ''}\nPontos:\n${middle}\nFechamento: ${last.title || ''} | ${last.paragraph || ''}`;
+  }
+
+  function localCaptionFallback(extra=''){
+    const hook = (state.slides?.[0]?.title || $('topic').value || 'Você está cometendo esse erro no LinkedIn').trim();
+    const cta = (state.slides?.[state.slides.length-1]?.cta || 'Comenta “HOOK” que eu te envio o template').trim();
+    return `${hook}\n\nA maioria dos posts falha nos primeiros segundos.\nNão por falta de conteúdo, mas por falta de abertura forte.\n\nNeste carrossel eu mostro o framework que usamos para prender atenção e levar até o CTA.\n\n${extra ? 'Contexto: ' + extra + '\n\n' : ''}Quer a estrutura pronta? ${cta}`;
+  }
+
+  async function generateLinkedinCaption(extraInstruction=''){
+    if(!state.ai.apiKey) return localCaptionFallback(extraInstruction);
+
+    const instructions = `Você é especialista em LinkedIn. Gere legenda em PT-BR com hook forte nas 2 primeiras linhas, dor/agitação/solução, sem clickbait barato. Máx 1200 caracteres. Tom direto. Termine com CTA. Retorne apenas texto puro.`;
+    const input = `${buildCaptionContext()}\nInstrução extra: ${extraInstruction || 'nenhuma'}`;
+
+    const body = {
+      model: state.ai.model,
+      instructions,
+      input,
+      temperature: 0.8,
+      stream: false
+    };
+
+    const res = await fetch(OPENAI_RESPONSES_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.ai.apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error(`Caption HTTP ${res.status}`);
+    const data = await res.json();
+    let text = data?.output_text || '';
+    if(!text && Array.isArray(data?.output)){
+      text = data.output.flatMap(o => o.content || []).filter(p => p.type === 'output_text').map(p => p.text).join('');
+    }
+    return text.trim() || localCaptionFallback(extraInstruction);
   }
 
   function parseImport(text){
