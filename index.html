@@ -407,7 +407,22 @@
     </div>
     <details style="margin-top:10px">
       <summary style="cursor:pointer;color:#cbd5e1">Conexão com LinkedIn (manual, 1x)</summary>
-      <div class="muted" style="margin:6px 0 8px">Passo 1: cole o access token • Passo 2: clique em validar • Passo 3: publique.</div>
+      <div class="muted" style="margin:6px 0 8px">Passo 1: gerar token • Passo 2: validar • Passo 3: publicar.</div>
+
+      <details style="margin:8px 0 10px">
+        <summary style="cursor:pointer;color:#cbd5e1">Como obter o access token</summary>
+        <div class="muted" style="margin:8px 0">1) Preencha Client ID e Redirect URI → 2) Clique em "Abrir autorização" → 3) Após login, copie o parâmetro <code>code</code> da URL → 4) Troque por token no terminal (com client secret) e cole abaixo.</div>
+        <label>Client ID</label>
+        <input id="liClientId" placeholder="ex.: 77hva8yw2n548u" />
+        <label>Redirect URI</label>
+        <input id="liRedirectUri" placeholder="https://seu-dominio/callback" />
+        <div class="row" style="margin-top:8px">
+          <button id="btnOpenLinkedinAuth" class="btn-ghost">Abrir autorização</button>
+          <button id="btnCopyLinkedinAuthUrl" class="btn-ghost">Copiar URL OAuth</button>
+        </div>
+        <div class="muted" style="margin-top:6px">Escopos usados: openid, profile, email, w_member_social</div>
+      </details>
+
       <label>Access token do LinkedIn</label>
       <input id="liAccessToken" type="password" placeholder="AQX..." />
       <label>Author URN (preenchimento automático ao validar)</label>
@@ -438,6 +453,8 @@
       streaming: true
     },
     linkedin: {
+      clientId: '',
+      redirectUri: '',
       accessToken: '',
       authorUrn: ''
     },
@@ -763,6 +780,8 @@
     if($('aiModel')) $('aiModel').value = state.ai.model || '';
     if($('aiRemember')) $('aiRemember').checked = !!state.ai.remember;
     if($('aiStreaming')) $('aiStreaming').checked = state.ai.streaming !== false;
+    if($('liClientId')) $('liClientId').value = state.linkedin.clientId || '';
+    if($('liRedirectUri')) $('liRedirectUri').value = state.linkedin.redirectUri || (location.origin + location.pathname);
     if($('liAccessToken')) $('liAccessToken').value = state.linkedin.accessToken || '';
     if($('liAuthorUrn')) $('liAuthorUrn').value = state.linkedin.authorUrn || '';
   }
@@ -971,6 +990,8 @@
       if(!$('postCaption').value.trim()){
         $('postCaption').value = localCaptionFallback();
       }
+      $('liClientId').value = state.linkedin.clientId || '';
+      $('liRedirectUri').value = state.linkedin.redirectUri || (location.origin + location.pathname);
       $('liAccessToken').value = state.linkedin.accessToken || '';
       $('liAuthorUrn').value = state.linkedin.authorUrn || '';
       if(!$('postMediaMode').value) $('postMediaMode').value = 'none';
@@ -1029,7 +1050,32 @@
       }
     };
 
+    $('btnOpenLinkedinAuth').onclick = ()=>{
+      try{
+        state.linkedin.clientId = $('liClientId').value.trim();
+        state.linkedin.redirectUri = $('liRedirectUri').value.trim();
+        persist();
+        window.open(buildLinkedinAuthUrl(), '_blank');
+      } catch(err){
+        $('liStatus').textContent = err.message;
+      }
+    };
+
+    $('btnCopyLinkedinAuthUrl').onclick = async ()=>{
+      try{
+        state.linkedin.clientId = $('liClientId').value.trim();
+        state.linkedin.redirectUri = $('liRedirectUri').value.trim();
+        persist();
+        await navigator.clipboard.writeText(buildLinkedinAuthUrl());
+        $('liStatus').textContent = 'URL OAuth copiada.';
+      } catch(err){
+        $('liStatus').textContent = err.message;
+      }
+    };
+
     $('btnValidateLinkedin').onclick = async ()=>{
+      state.linkedin.clientId = $('liClientId').value.trim();
+      state.linkedin.redirectUri = $('liRedirectUri').value.trim();
       state.linkedin.accessToken = $('liAccessToken').value.trim();
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
       persist();
@@ -1047,8 +1093,12 @@
     };
 
     $('btnClearLinkedin').onclick = ()=>{
+      state.linkedin.clientId = '';
+      state.linkedin.redirectUri = '';
       state.linkedin.accessToken = '';
       state.linkedin.authorUrn = '';
+      $('liClientId').value = '';
+      $('liRedirectUri').value = location.origin + location.pathname;
       $('liAccessToken').value = '';
       $('liAuthorUrn').value = '';
       $('liStatus').textContent = 'Credenciais limpas.';
@@ -1056,6 +1106,8 @@
     };
 
     $('btnPostLinkedin').onclick = async ()=>{
+      state.linkedin.clientId = $('liClientId').value.trim();
+      state.linkedin.redirectUri = $('liRedirectUri').value.trim();
       state.linkedin.accessToken = $('liAccessToken').value.trim();
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
       persist();
@@ -1267,6 +1319,15 @@
       text = data.output.flatMap(o => o.content || []).filter(p => p.type === 'output_text').map(p => p.text).join('');
     }
     return text.trim() || localCaptionFallback(extraInstruction);
+  }
+
+  function buildLinkedinAuthUrl(){
+    const clientId = (state.linkedin.clientId || '').trim();
+    const redirectUri = (state.linkedin.redirectUri || '').trim();
+    if(!clientId || !redirectUri) throw new Error('Preencha Client ID e Redirect URI');
+    const scope = encodeURIComponent('openid profile email w_member_social');
+    const stateParam = encodeURIComponent('carouselmaker_' + Date.now());
+    return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${stateParam}`;
   }
 
   async function linkedinApi(path, options = {}){
