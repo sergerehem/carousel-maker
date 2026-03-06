@@ -124,12 +124,12 @@
       </div>
       <label>Tópico</label>
       <input id="topic" placeholder="Ex.: Bastidores do PlayVSL" />
-      <label>Qtd. de slides</label>
+      <label>Quantidade de slides</label>
       <input id="slideCount" type="number" min="3" max="15" value="8" />
     </div>
 
     <div class="section">
-      <h3>Slide atual (o que mais muda)</h3>
+      <h3>Slide atual</h3>
       <label>Tagline</label>
       <input id="fTagline" />
       <label>Título</label>
@@ -140,7 +140,7 @@
       <input id="fCta" placeholder="Ex.: Acesse playvsl.com" />
       <label>URL do CTA</label>
       <input id="ctaUrl" placeholder="https://seusite.com" />
-      <label>Exibir CTA</label>
+      <label>Exibição do CTA</label>
       <select id="ctaVisibility">
         <option value="last">Apenas no último slide</option>
         <option value="all">Em todos os slides</option>
@@ -156,23 +156,23 @@
       </select>
       <label>Nome</label>
       <input id="creatorName" placeholder="Seu nome" value="AgentMembers" />
-      <label>Handle/Função ou Site</label>
+      <label>@Usuário, função ou site</label>
       <input id="creatorHandle" placeholder="@seuhandle ou site" value="agentmembers.com" />
       <div class="row">
         <div>
-          <label><input id="showCreator" type="checkbox" checked /> Mostrar bloco</label>
+          <label><input id="showCreator" type="checkbox" checked /> Mostrar informações do criador</label>
         </div>
         <div>
-          <label><input id="showOnlyIntroOutro" type="checkbox" checked /> Só Intro/Outro</label>
+          <label><input id="showOnlyIntroOutro" type="checkbox" checked /> Mostrar só no início e no fim</label>
         </div>
       </div>
-      <label>Posição do bloco pessoal</label>
+      <label>Posição (modo pessoal)</label>
       <select id="creatorPosition">
         <option value="bottom">Embaixo</option>
         <option value="top">Em cima</option>
       </select>
-      <label><input id="showSite" type="checkbox" checked /> Mostrar site (modo negócio)</label>
-      <label>Logo / Headshot</label>
+      <label><input id="showSite" type="checkbox" checked /> Mostrar site no modo negócio</label>
+      <label>Logo ou foto</label>
       <input id="creatorHeadshot" type="file" accept="image/*" />
       <div class="muted">No modo negócio, aparece no topo. No pessoal, avatar no topo/rodapé.</div>
     </div>
@@ -223,7 +223,7 @@
         <option value="DM Sans">DM Sans</option>
         <option value="Urbanist">Urbanist</option>
       </select>
-      <label>Tamanho do texto</label>
+      <label>Tamanho da tipografia</label>
       <select id="sizePreset">
         <option value="P">P</option>
         <option value="M">M</option>
