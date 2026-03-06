@@ -406,16 +406,17 @@
       </div>
     </div>
     <details style="margin-top:10px">
-      <summary style="cursor:pointer;color:#cbd5e1">Configuração LinkedIn (manual, 1x)</summary>
-      <label>Access token</label>
+      <summary style="cursor:pointer;color:#cbd5e1">Conexão com LinkedIn (manual, 1x)</summary>
+      <div class="muted" style="margin:6px 0 8px">Passo 1: cole o access token • Passo 2: clique em validar • Passo 3: publique.</div>
+      <label>Access token do LinkedIn</label>
       <input id="liAccessToken" type="password" placeholder="AQX..." />
-      <label>Author URN (opcional)</label>
+      <label>Author URN (preenchimento automático ao validar)</label>
       <input id="liAuthorUrn" placeholder="urn:li:person:xxxx" />
       <div class="row" style="margin-top:8px">
-        <button id="btnValidateLinkedin" class="btn-ghost">Validar token</button>
+        <button id="btnValidateLinkedin" class="btn-ghost">Validar e detectar perfil</button>
         <button id="btnClearLinkedin" class="btn-ghost">Limpar</button>
       </div>
-      <div class="muted" id="liStatus" style="margin-top:6px">Sem validação ainda.</div>
+      <div class="muted" id="liStatus" style="margin-top:6px">Status: não conectado.</div>
     </details>
     <div class="row" style="margin-top:10px">
       <button id="btnPostModalClose" class="btn-ghost">Fechar</button>
