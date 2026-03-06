@@ -1095,8 +1095,9 @@
     $('btnValidateLinkedin').onclick = async ()=>{
       state.linkedin.clientId = $('liClientId').value.trim();
       state.linkedin.redirectUri = $('liRedirectUri').value.trim();
-      state.linkedin.accessToken = $('liAccessToken').value.trim();
+      state.linkedin.accessToken = extractAccessToken($('liAccessToken').value);
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
+      $('liAccessToken').value = state.linkedin.accessToken;
       persist();
       $('liStatus').textContent = 'Validando token...';
       try{
@@ -1127,8 +1128,9 @@
     $('btnPostLinkedin').onclick = async ()=>{
       state.linkedin.clientId = $('liClientId').value.trim();
       state.linkedin.redirectUri = $('liRedirectUri').value.trim();
-      state.linkedin.accessToken = $('liAccessToken').value.trim();
+      state.linkedin.accessToken = extractAccessToken($('liAccessToken').value);
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
+      $('liAccessToken').value = state.linkedin.accessToken;
       persist();
       const mode = $('postMediaMode').value;
       setStatus('Publicando no LinkedIn...');
@@ -1349,6 +1351,20 @@
     return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${stateParam}`;
   }
 
+  function extractAccessToken(raw=''){
+    const v = String(raw || '').trim();
+    if(!v) return '';
+    if(v.startsWith('{') || v.includes('"access_token"')){
+      try{
+        const obj = JSON.parse(v.startsWith('{') ? v : ('{' + v));
+        return String(obj.access_token || '').trim();
+      } catch(_e) {}
+    }
+    const m = v.match(/"access_token"\s*:\s*"([^"]+)"/);
+    if(m) return m[1].trim();
+    return v;
+  }
+
   function buildLinkedinTokenCurl(code){
     const clientId = (state.linkedin.clientId || '').trim();
     const redirectUri = (state.linkedin.redirectUri || '').trim();
@@ -1360,14 +1376,18 @@
   async function linkedinApi(path, options = {}){
     const token = state.linkedin.accessToken || '';
     if(!token) throw new Error('Sem token LinkedIn');
+    const method = (options.method || 'GET').toUpperCase();
+    const baseHeaders = {
+      'Authorization': `Bearer ${token}`,
+      ...(options.headers || {})
+    };
+    if(method !== 'GET'){
+      if(!baseHeaders['Content-Type']) baseHeaders['Content-Type'] = 'application/json';
+      if(!baseHeaders['X-Restli-Protocol-Version']) baseHeaders['X-Restli-Protocol-Version'] = '2.0.0';
+    }
     const res = await fetch(`https://api.linkedin.com${path}`, {
       ...options,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Restli-Protocol-Version': '2.0.0',
-        ...(options.headers || {})
-      }
+      headers: baseHeaders
     });
     if(!res.ok){
       const txt = await res.text();
