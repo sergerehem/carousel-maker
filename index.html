@@ -420,6 +420,10 @@
           <button id="btnOpenLinkedinAuth" class="btn-ghost">Abrir autorização</button>
           <button id="btnCopyLinkedinAuthUrl" class="btn-ghost">Copiar URL OAuth</button>
         </div>
+        <div class="row" style="margin-top:8px">
+          <input id="liAuthCode" placeholder="Cole aqui o code retornado pelo LinkedIn" />
+          <button id="btnCopyCurlToken" class="btn-ghost">Copiar curl (troca code→token)</button>
+        </div>
         <div class="muted" style="margin-top:6px">Escopos usados: openid, profile, email, w_member_social</div>
       </details>
 
@@ -994,6 +998,8 @@
       $('liRedirectUri').value = state.linkedin.redirectUri || (location.origin + location.pathname);
       $('liAccessToken').value = state.linkedin.accessToken || '';
       $('liAuthorUrn').value = state.linkedin.authorUrn || '';
+      const qp = new URLSearchParams(location.search);
+      $('liAuthCode').value = qp.get('code') || '';
       if(!$('postMediaMode').value) $('postMediaMode').value = 'none';
       refreshPostPreview();
       refreshPostMediaUI();
@@ -1068,6 +1074,19 @@
         persist();
         await navigator.clipboard.writeText(buildLinkedinAuthUrl());
         $('liStatus').textContent = 'URL OAuth copiada.';
+      } catch(err){
+        $('liStatus').textContent = err.message;
+      }
+    };
+
+    $('btnCopyCurlToken').onclick = async ()=>{
+      try{
+        state.linkedin.clientId = $('liClientId').value.trim();
+        state.linkedin.redirectUri = $('liRedirectUri').value.trim();
+        persist();
+        const cmd = buildLinkedinTokenCurl($('liAuthCode').value.trim());
+        await navigator.clipboard.writeText(cmd);
+        $('liStatus').textContent = 'curl copiado. Rode no terminal e cole o access_token aqui.';
       } catch(err){
         $('liStatus').textContent = err.message;
       }
@@ -1328,6 +1347,14 @@
     const scope = encodeURIComponent('openid profile email w_member_social');
     const stateParam = encodeURIComponent('carouselmaker_' + Date.now());
     return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${stateParam}`;
+  }
+
+  function buildLinkedinTokenCurl(code){
+    const clientId = (state.linkedin.clientId || '').trim();
+    const redirectUri = (state.linkedin.redirectUri || '').trim();
+    const cleanCode = String(code || '').trim();
+    if(!clientId || !redirectUri || !cleanCode) throw new Error('Preencha Client ID, Redirect URI e code');
+    return `curl -X POST "https://www.linkedin.com/oauth/v2/accessToken" \\\n  -H "Content-Type: application/x-www-form-urlencoded" \\\n  --data-urlencode "grant_type=authorization_code" \\\n  --data-urlencode "code=${cleanCode}" \\\n  --data-urlencode "redirect_uri=${redirectUri}" \\\n  --data-urlencode "client_id=${clientId}" \\\n  --data-urlencode "client_secret=SEU_CLIENT_SECRET"`;
   }
 
   async function linkedinApi(path, options = {}){
