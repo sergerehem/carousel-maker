@@ -48,6 +48,8 @@
     .btn-primary{background:var(--accent);color:white}
     #btnExport{min-width:210px;white-space:nowrap}
     .btn-ghost{background:#1f2937;color:#e5e7eb;border:1px solid #374151}
+    .theme-toggle{width:34px;height:34px;border-radius:999px;border:1px solid var(--border);background:rgba(124,58,237,.10);color:var(--text);display:grid;place-items:center;padding:0;font-size:16px}
+    .theme-toggle:hover{background:rgba(124,58,237,.18)}
     .row{display:flex;gap:8px}
     .row>*{flex:1}
     .palette-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
@@ -110,11 +112,8 @@
   <aside class="sidebar">
     <h2 style="margin:0 0 6px">Carousel Maker</h2>
     <div class="muted">Da ideia ao carrossel pronto em segundos.</div>
-    <div class="row" style="margin:10px 0 12px">
-      <select id="themeMode">
-        <option value="dark">Dark</option>
-        <option value="light">Light</option>
-      </select>
+    <div style="margin:10px 0 12px;display:flex;justify-content:flex-end">
+      <button id="themeToggle" class="theme-toggle" title="Alternar tema" aria-label="Alternar tema">🌙</button>
     </div>
 
     <div class="section">
@@ -450,8 +449,13 @@
   }
 
   function applyTheme(){
-    document.documentElement.setAttribute('data-theme', state.theme || 'dark');
-    $('themeMode').value = state.theme || 'dark';
+    const mode = state.theme || 'dark';
+    document.documentElement.setAttribute('data-theme', mode);
+    const t = $('themeToggle');
+    if(t){
+      t.textContent = mode === 'light' ? '☀️' : '🌙';
+      t.title = mode === 'light' ? 'Tema claro' : 'Tema escuro';
+    }
   }
 
   function persist(){
@@ -666,7 +670,6 @@
     $('customBodySize').value = state.config.customBodySize || 36;
     $('customSizeWrap').style.display = (state.config.sizePreset === 'CUSTOM') ? 'block' : 'none';
     $('brandType').value = state.config.brandType || 'personal';
-    $('themeMode').value = state.theme || 'dark';
     $('creatorName').value = state.config.creatorName || '';
     $('creatorHandle').value = state.config.creatorHandle || '';
     $('creatorPosition').value = state.config.creatorPosition || 'bottom';
@@ -716,8 +719,8 @@
       $(id).addEventListener('change', apply);
     });
 
-    $('themeMode').addEventListener('change', ()=>{
-      state.theme = $('themeMode').value;
+    $('themeToggle').addEventListener('click', ()=>{
+      state.theme = (state.theme === 'light') ? 'dark' : 'light';
       applyTheme();
       persist();
     });
