@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carousel Maker (Local)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Inter:wght@400;500;700;800&family=Lato:wght@400;700;900&family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600;700;800&family=Poppins:wght@400;600;700;800&family=Roboto:wght@400;500;700;900&family=Urbanist:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --panel:#111827;
+      --card:#ffffff;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --accent:#7c3aed;
+      --border:#374151;
+    }
+    [data-theme="light"]{
+      --bg:#f3f4f6;
+      --panel:#ffffff;
+      --text:#111827;
+      --muted:#4b5563;
+      --accent:#7c3aed;
+      --border:#d1d5db;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .app{display:grid;grid-template-columns:320px 1fr;min-height:100vh}
+    .sidebar{background:var(--panel);border-right:1px solid #1f2937;padding:14px;overflow:auto}
+    .content{padding:16px;display:flex;flex-direction:column;gap:12px}
+    .section{border:1px solid var(--border);border-radius:10px;padding:0;margin-bottom:10px;overflow:hidden}
+    .section h3{margin:0;font-size:14px}
+    .section-header{display:flex;align-items:center;justify-content:space-between;padding:10px;cursor:pointer;background:rgba(124,58,237,.06)}
+    .section-header .acc-icon{font-size:12px;opacity:.8}
+    .section-body{padding:10px;border-top:1px solid var(--border)}
+    .section.collapsed .section-body{display:none}
+    .muted{color:var(--muted);font-size:12px}
+    label{display:block;font-size:12px;color:#cbd5e1;margin:8px 0 4px}
+    input, textarea, select, button{font:inherit}
+    input, textarea, select{width:100%;background:#0b1220;border:1px solid var(--border);border-radius:8px;color:#e5e7eb;padding:8px}
+    textarea{min-height:80px;resize:vertical}
+    button{border:none;border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:600}
+    .btn-primary{background:var(--accent);color:white}
+    #btnExport{min-width:210px;white-space:nowrap}
+    .btn-ghost{background:#1f2937;color:#e5e7eb;border:1px solid #374151}
+    .row{display:flex;gap:8px}
+    .row>*{flex:1}
+    .palette-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
+    .swatch{height:26px;border-radius:6px;border:1px solid #9ca3af;cursor:pointer}
+
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .toolbar-right{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:nowrap}
+    .slides-nav{display:flex;gap:8px;overflow:auto;padding-bottom:4px}
+    .slide-chip{padding:6px 10px;border-radius:999px;background:#1f2937;color:#cbd5e1;border:1px solid #334155;white-space:nowrap}
+    .slide-chip.active{background:#7c3aed;color:#fff}
+
+    .preview-wrap{display:flex;justify-content:center;align-items:flex-start;padding:10px;background:#0b1220;border:1px solid #1f2937;border-radius:10px;overflow:auto}
+    .slide-preview{
+      width:675px; /* 4:5 scaled */
+      height:844px;
+      background:var(--card);
+      color:#111827;
+      border-radius:var(--radius,20px);
+      padding:38px 42px;
+      position:relative;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .badge{position:absolute;top:20px;left:20px;background:#111827;color:#fff;padding:8px 12px;border-radius:12px;font-size:14px;border:2px solid transparent;min-width:34px;text-align:center}
+    .badge.badge-outline{background:transparent;color:#111827;border-color:#111827}
+    .brand{position:absolute;top:24px;right:24px;text-align:right;font-size:14px;color:#6b7280}
+    .business-header{position:absolute;left:42px;right:42px;top:26px;display:flex;justify-content:space-between;align-items:center}
+    .business-left{display:flex;align-items:center;gap:10px;min-width:0}
+    .business-logo{width:34px;height:34px;border-radius:999px;overflow:hidden;background:#e5e7eb;border:1px solid #d1d5db;display:grid;place-items:center;font-weight:700;color:#6b7280;font-size:12px}
+    .business-logo img{width:100%;height:100%;object-fit:cover}
+    .business-name{font-size:16px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+    .business-site{font-size:14px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;text-align:right}
+    .creator{position:absolute;left:42px;display:flex;align-items:center;gap:12px;max-width:420px;z-index:4}
+    .creator.creator-bottom{bottom:28px}
+    .creator.creator-top{top:42px}
+    .creator-avatar{width:48px;height:48px;border-radius:999px;overflow:hidden;background:#e5e7eb;border:2px solid #d1d5db;display:grid;place-items:center;font-weight:700;color:#6b7280}
+    .creator-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .creator-meta{line-height:1.1}
+    .creator-name{font-size:28px;font-weight:700;color:#111827;font-family:var(--title-font,'Inter')}
+    .creator-handle{font-size:22px;color:#6b7280;margin-top:3px;font-family:var(--body-font,'Inter')}
+    .tagline{font-size:var(--tagline-size,26px);color:#6b7280;margin-top:48px;font-family:var(--body-font,'Inter')}
+    .title{font-size:var(--title-size,62px);line-height:1.06;font-weight:800;margin-top:16px;white-space:pre-line;text-align:var(--align,left);font-family:var(--title-font,'Inter')}
+    .paragraph{font-size:var(--body-size,36px);line-height:1.25;margin-top:34px;white-space:pre-line;text-align:var(--align,left);font-family:var(--body-font,'Inter')}
+    [contenteditable="true"]{outline:none}
+    [contenteditable="true"]:focus{box-shadow:0 0 0 2px rgba(124,58,237,.25);border-radius:8px}
+    .cta{position:absolute;left:50%;transform:translateX(-50%);bottom:42px;background:#ef4444;color:#fff;padding:12px 20px;border-radius:999px;font-size:24px;font-weight:700;z-index:3}
+    .cta.cta-above-creator{bottom:196px}
+
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+    .modal{width:min(900px,100%);background:#111827;border:1px solid #374151;border-radius:12px;padding:14px}
+
+    @media (max-width:1100px){
+      .app{grid-template-columns:1fr}
+      .sidebar{border-right:none;border-bottom:1px solid #1f2937}
+      .slide-preview{transform:scale(.72);transform-origin:top center;margin-bottom:-220px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <h2 style="margin:0 0 6px">Carousel Maker (Local)</h2>
+    <div class="muted">Versão simplificada para uso pessoal.</div>
+    <div class="row" style="margin:10px 0 12px">
+      <select id="themeMode">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <h3>Conteúdo</h3>
+      <div class="row">
+        <button id="btnGenerate" class="btn-primary">Gerar por IA</button>
+        <button id="btnImportOpen" class="btn-ghost">Importar</button>
+      </div>
+      <label>Tópico</label>
+      <input id="topic" placeholder="Ex.: Bastidores do PlayVSL" />
+      <label>Qtd. de slides</label>
+      <input id="slideCount" type="number" min="3" max="15" value="8" />
+    </div>
+
+    <div class="section">
+      <h3>Slide atual (o que mais muda)</h3>
+      <label>Tagline</label>
+      <input id="fTagline" />
+      <label>Título</label>
+      <textarea id="fTitle"></textarea>
+      <label>Parágrafo</label>
+      <textarea id="fParagraph"></textarea>
+      <label>CTA</label>
+      <input id="fCta" placeholder="Ex.: Acesse playvsl.com" />
+      <label>URL do CTA</label>
+      <input id="ctaUrl" placeholder="https://seusite.com" />
+      <label>Exibir CTA</label>
+      <select id="ctaVisibility">
+        <option value="last">Apenas no último slide</option>
+        <option value="all">Em todos os slides</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <h3>Informações do criador</h3>
+      <label>Tipo de marca</label>
+      <select id="brandType">
+        <option value="personal">Pessoal</option>
+        <option value="business">Negócio</option>
+      </select>
+      <label>Nome</label>
+      <input id="creatorName" placeholder="Seu nome" value="AgentMembers" />
+      <label>Handle/Função ou Site</label>
+      <input id="creatorHandle" placeholder="@seuhandle ou site" value="agentmembers.com" />
+      <div class="row">
+        <div>
+          <label><input id="showCreator" type="checkbox" checked /> Mostrar bloco</label>
+        </div>
+        <div>
+          <label><input id="showOnlyIntroOutro" type="checkbox" checked /> Só Intro/Outro</label>
+        </div>
+      </div>
+      <label>Posição do bloco pessoal</label>
+      <select id="creatorPosition">
+        <option value="bottom">Embaixo</option>
+        <option value="top">Em cima</option>
+      </select>
+      <label><input id="showSite" type="checkbox" checked /> Mostrar site (modo negócio)</label>
+      <label>Logo / Headshot</label>
+      <input id="creatorHeadshot" type="file" accept="image/*" />
+      <div class="muted">No modo negócio, aparece no topo. No pessoal, avatar no topo/rodapé.</div>
+    </div>
+
+    <div class="section">
+      <h3>Estilo Global</h3>
+      <div class="row">
+        <div>
+          <label>Fundo</label>
+          <input id="bgColor" data-coloris value="#ffffff" />
+        </div>
+        <div>
+          <label>Texto</label>
+          <input id="textColor" data-coloris value="#111827" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Destaque</label>
+          <input id="accentColor" data-coloris value="#ef4444" />
+        </div>
+      </div>
+      <label>Alinhamento</label>
+      <select id="align">
+        <option value="left">Esquerda</option>
+        <option value="center">Centro</option>
+        <option value="right">Direita</option>
+      </select>
+      <label>Fonte do título</label>
+      <select id="titleFont">
+        <option value="Inter">Inter</option>
+        <option value="Poppins">Poppins</option>
+        <option value="Montserrat">Montserrat</option>
+        <option value="Roboto">Roboto</option>
+        <option value="Open Sans">Open Sans</option>
+        <option value="Lato">Lato</option>
+        <option value="DM Sans">DM Sans</option>
+        <option value="Urbanist">Urbanist</option>
+      </select>
+      <label>Fonte do texto</label>
+      <select id="bodyFont">
+        <option value="Inter">Inter</option>
+        <option value="Poppins">Poppins</option>
+        <option value="Montserrat">Montserrat</option>
+        <option value="Roboto">Roboto</option>
+        <option value="Open Sans">Open Sans</option>
+        <option value="Lato">Lato</option>
+        <option value="DM Sans">DM Sans</option>
+        <option value="Urbanist">Urbanist</option>
+      </select>
+      <label>Tamanho do texto</label>
+      <select id="sizePreset">
+        <option value="P">P</option>
+        <option value="M">M</option>
+        <option value="G">G</option>
+        <option value="CUSTOM">Custom</option>
+      </select>
+      <div id="customSizeWrap" style="display:none">
+        <label>Título (px)</label>
+        <input id="customTitleSize" type="number" min="28" max="120" value="62" />
+        <label>Texto (px)</label>
+        <input id="customBodySize" type="number" min="18" max="80" value="36" />
+      </div>
+      <label>Cores comuns</label>
+      <div class="palette-grid" id="paletteGrid"></div>
+    </div>
+
+    <div class="section">
+      <h3>Contador e cantos</h3>
+      <label>Estilo do contador</label>
+      <select id="counterStyle">
+        <option value="filled">Preenchido</option>
+        <option value="outline">Esboço</option>
+      </select>
+      <label>Cantos arredondados</label>
+      <input id="radius" type="range" min="0" max="40" value="20" />
+    </div>
+
+    <div class="section">
+      <h3>Ações</h3>
+      <div class="row">
+        <button id="btnAdd" class="btn-ghost">+ Slide</button>
+        <button id="btnDelete" class="btn-ghost">Excluir</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="btnSave" class="btn-ghost">Salvar local</button>
+        <button id="btnLoad" class="btn-ghost">Carregar</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="toolbar">
+      <div class="muted">Formato: LinkedIn 4:5 (1080x1350)</div>
+      <div class="toolbar-right">
+        <div class="muted" id="status" style="display:flex;align-items:center;justify-content:flex-end">Pronto</div>
+        <button id="btnExport" class="btn-primary">Exportar PDF (4:5)</button>
+      </div>
+    </div>
+
+    <div class="slides-nav" id="slidesNav"></div>
+
+    <div class="preview-wrap">
+      <div class="slide-preview" id="preview">
+        <div class="badge" id="pBadge">1</div>
+        <div class="business-header" id="pBusinessHeader">
+          <div class="business-left">
+            <div class="business-logo" id="pBusinessLogo">A</div>
+            <div class="business-name" id="pBusinessName">AgentMembers</div>
+          </div>
+          <div class="business-site" id="pBusinessSite">agentmembers.com</div>
+        </div>
+        <div class="brand" id="pBrand" style="display:none">Seu domínio</div>
+        <div class="tagline" id="pTagline" contenteditable="true" spellcheck="false">Tagline</div>
+        <div class="title" id="pTitle" contenteditable="true" spellcheck="false">Título</div>
+        <div class="paragraph" id="pParagraph" contenteditable="true" spellcheck="false">Parágrafo</div>
+        <div class="creator" id="pCreator">
+          <div class="creator-avatar" id="pCreatorAvatar">AM</div>
+          <div class="creator-meta">
+            <div class="creator-name" id="pCreatorName" contenteditable="true" spellcheck="false">AgentMembers</div>
+            <div class="creator-handle" id="pCreatorHandle" contenteditable="true" spellcheck="false">agentmembers.com</div>
+          </div>
+        </div>
+        <div class="cta" id="pCta" contenteditable="true" spellcheck="false">CTA</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal Import -->
+<div class="modal-backdrop" id="importModal">
+  <div class="modal">
+    <h3 style="margin:0 0 8px">Importar roteiro</h3>
+    <div class="muted">Formato sugerido: [Intro], [Slide 1], [Slide 2] ... com Title/Paragraph/Tagline.</div>
+    <textarea id="importText" style="min-height:240px" placeholder="[Intro]\nTagline: ...\nTitle: ...\nParagraph: ...\n\n[Slide 1]\nTitle: ...\nParagraph: ..."></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="btnImportCancel" class="btn-ghost">Cancelar</button>
+      <button id="btnImportApply" class="btn-primary">Aplicar importação</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal IA -->
+<div class="modal-backdrop" id="aiModal">
+  <div class="modal">
+    <h3 style="margin:0 0 8px">Gerar carrossel por IA</h3>
+    <div class="muted">Descreva o que você quer. Eu gero a estrutura dos slides automaticamente.</div>
+    <label>Instruções</label>
+    <textarea id="aiPrompt" style="min-height:180px" placeholder="Ex.: Faça um carrossel com 8 slides sobre erros de VSL... tom direto, exemplos práticos, CTA final."></textarea>
+    <div class="row">
+      <div>
+        <label>Slides</label>
+        <input id="aiSlideCount" type="number" min="3" max="15" value="8" />
+      </div>
+      <div>
+        <label>Tópico (opcional)</label>
+        <input id="aiTopic" placeholder="Ex.: Conteúdo demais, ação de menos" />
+      </div>
+    </div>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;color:#cbd5e1">Configurar IA real (opcional)</summary>
+      <label>API Key</label>
+      <input id="aiApiKey" type="password" placeholder="sk-..." />
+      <div class="row">
+        <div>
+          <label>Modelo</label>
+          <input id="aiModel" value="gpt-5.1-mini" />
+        </div>
+      </div>
+      <label><input id="aiRemember" type="checkbox" checked /> Salvar credenciais no navegador local</label>
+      <label><input id="aiStreaming" type="checkbox" checked /> Usar streaming (Responses API)</label>
+      <div class="muted">Sem API Key, usa geração local assistida.</div>
+    </details>
+    <div class="row" style="margin-top:10px">
+      <button id="btnAICancel" class="btn-ghost">Cancelar</button>
+      <button id="btnAIApply" class="btn-primary">Gerar agora</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+<script>
+  const STORAGE_KEY = 'carousel_maker_local_v1';
+
+  const state = {
+    theme: 'dark',
+    ai: {
+      apiKey: '',
+      model: 'gpt-5.1-mini',
+      remember: true,
+      streaming: true
+    },
+    config: {
+      bgColor: '#ffffff',
+      textColor: '#111827',
+      accentColor: '#ef4444',
+      radius: 20,
+      align: 'left',
+      counterStyle: 'filled',
+      titleFont: 'Inter',
+      bodyFont: 'Inter',
+      sizePreset: 'M',
+      customTitleSize: 62,
+      customBodySize: 36,
+      brandType: 'personal',
+      brand: 'seusite.com',
+      creatorName: 'AgentMembers',
+      creatorHandle: 'agentmembers.com',
+      creatorHeadshot: '',
+      creatorPosition: 'bottom',
+      showCreator: true,
+      showOnlyIntroOutro: true,
+      showSite: true,
+      ctaVisibility: 'last',
+      ctaUrl: 'https://playvsl.com'
+    },
+    slides: [],
+    current: 0
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
+  const COMMON_PALETTES = [
+    ['#ffffff','#111827','#1d4ed8'],
+    ['#f5f3ff','#1e1b4b','#4f46e5'],
+    ['#fff7ed','#1f2937','#ea580c'],
+    ['#f0fdf4','#14532d','#16a34a'],
+    ['#fef2f2','#111827','#dc2626'],
+    ['#0b1020','#e5e7eb','#22d3ee'],
+    ['#111827','#f9fafb','#a78bfa'],
+    ['#f8fafc','#0f172a','#0ea5e9'],
+    ['#faf5ff','#3b0764','#c026d3'],
+    ['#ecfeff','#083344','#06b6d4'],
+    ['#fffbeb','#422006','#f59e0b'],
+    ['#f9fafb','#111827','#10b981']
+  ];
+
+  function defaultSlides(n=8, topic='Bastidores do PlayVSL'){
+    const slides = [];
+    slides.push({ tagline:'Bastidores reais', title: topic, paragraph:'MicroSaaS em 48h com OpenClaw.', cta:'Acesse playvsl.com' });
+    for(let i=1;i<n-1;i++){
+      slides.push({
+        tagline:'',
+        title:`Slide ${i}`,
+        paragraph:`Conteúdo do slide ${i}.\n\nEdite este texto no painel esquerdo.`,
+        cta:'Acesse playvsl.com'
+      });
+    }
+    slides.push({ tagline:'Próximo passo', title:'Teste agora', paragraph:'Use este template e publique hoje.', cta:'Acesse playvsl.com' });
+    return slides;
+  }
+
+  function setStatus(msg){ $('status').textContent = msg; }
+
+  function getInitials(name=''){
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    if(!parts.length) return 'U';
+    return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+  }
+
+  function isIntroOrOutro(index){
+    return index === 0 || index === state.slides.length - 1;
+  }
+
+  function editableToText(el){
+    return (el.innerText || '').replace(/\u00A0/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+  }
+
+  function normalizeUrl(url=''){
+    const u = String(url || '').trim();
+    if(!u) return '';
+    if(/^https?:\/\//i.test(u)) return u;
+    return 'https://' + u;
+  }
+
+  function applyTheme(){
+    document.documentElement.setAttribute('data-theme', state.theme || 'dark');
+    $('themeMode').value = state.theme || 'dark';
+  }
+
+  function persist(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function hydrate(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    try{
+      const saved = JSON.parse(raw);
+      if(saved?.config) state.config = Object.assign({}, state.config, saved.config);
+      if(saved?.ai) state.ai = Object.assign({}, state.ai, saved.ai);
+      if(Array.isArray(saved?.slides) && saved.slides.length) state.slides = saved.slides;
+      if(typeof saved?.current === 'number') state.current = Math.max(0, saved.current);
+      if(saved?.theme) state.theme = saved.theme;
+      return true;
+    }catch(_e){
+      return false;
+    }
+  }
+
+  function renderPalette(){
+    const grid = $('paletteGrid');
+    grid.innerHTML = '';
+    COMMON_PALETTES.forEach(([bg,text,accent])=>{
+      const b = document.createElement('button');
+      b.className = 'swatch';
+      b.title = `${bg} / ${text} / ${accent}`;
+      b.style.background = `linear-gradient(90deg, ${bg} 0 33%, ${text} 33% 66%, ${accent} 66% 100%)`;
+      b.onclick = ()=>{
+        state.config.bgColor = bg;
+        state.config.textColor = text;
+        state.config.accentColor = accent;
+        syncForm();
+        render();
+      };
+      grid.appendChild(b);
+    });
+  }
+
+  function initAccordions(){
+    const sections = Array.from(document.querySelectorAll('.sidebar .section'));
+    sections.forEach((section, idx)=>{
+      const h3 = section.querySelector('h3');
+      if(!h3 || section.querySelector('.section-header')) return;
+
+      const header = document.createElement('div');
+      header.className = 'section-header';
+      const icon = document.createElement('span');
+      icon.className = 'acc-icon';
+      icon.textContent = '▾';
+      h3.parentNode.insertBefore(header, h3);
+      header.appendChild(h3);
+      header.appendChild(icon);
+
+      const body = document.createElement('div');
+      body.className = 'section-body';
+      while(header.nextSibling){
+        body.appendChild(header.nextSibling);
+      }
+      section.appendChild(body);
+
+      const key = `acc_${idx}`;
+      const saved = localStorage.getItem(key);
+      const collapsed = saved === '1';
+      section.classList.toggle('collapsed', collapsed);
+      icon.textContent = collapsed ? '▸' : '▾';
+
+      header.addEventListener('click', ()=>{
+        section.classList.toggle('collapsed');
+        const isCollapsed = section.classList.contains('collapsed');
+        icon.textContent = isCollapsed ? '▸' : '▾';
+        localStorage.setItem(key, isCollapsed ? '1' : '0');
+      });
+    });
+  }
+
+  function renderNav(){
+    const nav = $('slidesNav');
+    nav.innerHTML='';
+    state.slides.forEach((s,idx)=>{
+      const b = document.createElement('button');
+      b.className = 'slide-chip' + (idx===state.current ? ' active' : '');
+      b.textContent = idx===0 ? 'Intro' : (idx===state.slides.length-1 ? 'Outro' : `Slide ${idx}`);
+      b.onclick = ()=>{ state.current=idx; syncForm(); render(); };
+      nav.appendChild(b);
+    });
+  }
+
+  function getFontSizes(){
+    const preset = state.config.sizePreset || 'M';
+    if(preset === 'P') return { title: 54, body: 30, tagline: 22 };
+    if(preset === 'G') return { title: 70, body: 42, tagline: 30 };
+    if(preset === 'CUSTOM'){
+      const t = Number(state.config.customTitleSize || 62);
+      const b = Number(state.config.customBodySize || 36);
+      return { title: t, body: b, tagline: Math.max(20, Math.round(b * 0.72)) };
+    }
+    return { title: 62, body: 36, tagline: 26 }; // M
+  }
+
+  function render(){
+    const s = state.slides[state.current] || {tagline:'', title:'', paragraph:'', cta:''};
+
+    const p = $('preview');
+    p.style.background = state.config.bgColor;
+    p.style.color = state.config.textColor;
+    p.style.setProperty('--radius', state.config.radius + 'px');
+    p.style.setProperty('--align', state.config.align);
+    p.style.setProperty('--title-font', state.config.titleFont || 'Inter');
+    p.style.setProperty('--body-font', state.config.bodyFont || 'Inter');
+    const fs = getFontSizes();
+    p.style.setProperty('--title-size', fs.title + 'px');
+    p.style.setProperty('--body-size', fs.body + 'px');
+    p.style.setProperty('--tagline-size', fs.tagline + 'px');
+    $('pBadge').textContent = state.current+1;
+    $('pTagline').textContent = s.tagline || '';
+    $('pTitle').textContent = s.title || '';
+    $('pParagraph').textContent = s.paragraph || '';
+
+    const ctaText = (s.cta || '').trim();
+    const ctaByConfig = state.config.ctaVisibility === 'all' || state.current === state.slides.length - 1;
+    const showCta = ctaByConfig && !!ctaText;
+    $('pCta').textContent = ctaText;
+
+    $('pTagline').style.color = '#6b7280';
+    $('pCta').style.background = state.config.accentColor;
+    $('pTitle').style.color = state.config.textColor;
+    $('pParagraph').style.color = state.config.textColor;
+    $('pCta').style.display = showCta ? 'block' : 'none';
+    const ctaUrl = normalizeUrl(state.config.ctaUrl || '');
+    $('pCta').style.cursor = ctaUrl ? 'pointer' : 'text';
+    $('pCta').title = ctaUrl || '';
+
+    const isPersonal = state.config.brandType !== 'business';
+    const shouldShowCreator = !!state.config.showCreator && (!state.config.showOnlyIntroOutro || isIntroOrOutro(state.current));
+    const showPersonal = isPersonal && shouldShowCreator;
+    const showBusiness = !isPersonal;
+    const creatorTop = state.config.creatorPosition === 'top';
+
+    $('pBadge').style.borderRadius = Math.max(8, Math.floor(state.config.radius / 2)) + 'px';
+    $('pBadge').classList.toggle('badge-outline', state.config.counterStyle === 'outline');
+    if(state.config.counterStyle === 'outline'){
+      $('pBadge').style.borderColor = state.config.textColor;
+      $('pBadge').style.color = state.config.textColor;
+    } else {
+      $('pBadge').style.borderColor = 'transparent';
+      $('pBadge').style.color = '#fff';
+    }
+
+    $('pTagline').style.marginTop = (showPersonal && creatorTop) || showBusiness ? '120px' : '48px';
+
+    $('pCreator').style.display = showPersonal ? 'flex' : 'none';
+    $('pCreator').classList.remove('creator-top','creator-bottom');
+    $('pCreator').classList.add(creatorTop ? 'creator-top' : 'creator-bottom');
+
+    const creatorIsBottom = showPersonal && !creatorTop;
+    $('pCta').classList.toggle('cta-above-creator', creatorIsBottom && showCta);
+
+    // garante área de segurança: nada fica abaixo do bloco do criador no bottom
+    $('pParagraph').style.maxHeight = creatorIsBottom ? '380px' : 'none';
+    $('pParagraph').style.overflow = creatorIsBottom ? 'hidden' : 'visible';
+
+    $('pBusinessHeader').style.display = showBusiness ? 'flex' : 'none';
+    $('pBusinessName').textContent = state.config.creatorName || 'Sua marca';
+    $('pBusinessSite').textContent = state.config.showSite ? (state.config.creatorHandle || '') : '';
+
+    $('pBrand').style.display = 'none';
+    $('pCreatorName').textContent = state.config.creatorName || 'Seu nome';
+    $('pCreatorHandle').textContent = state.config.creatorHandle || '@seuhandle';
+
+    const avatar = $('pCreatorAvatar');
+    const businessLogo = $('pBusinessLogo');
+    avatar.innerHTML = '';
+    businessLogo.innerHTML = '';
+    if(state.config.creatorHeadshot){
+      const img1 = document.createElement('img');
+      img1.src = state.config.creatorHeadshot;
+      avatar.appendChild(img1);
+      const img2 = document.createElement('img');
+      img2.src = state.config.creatorHeadshot;
+      businessLogo.appendChild(img2);
+    } else {
+      const initials = getInitials(state.config.creatorName || 'U');
+      avatar.textContent = initials;
+      businessLogo.textContent = initials;
+    }
+
+    renderNav();
+    persist();
+  }
+
+  function syncForm(){
+    const s = state.slides[state.current];
+    $('fTagline').value = s.tagline || '';
+    $('fTitle').value = s.title || '';
+    $('fParagraph').value = s.paragraph || '';
+    $('fCta').value = s.cta || '';
+    $('ctaUrl').value = state.config.ctaUrl || '';
+
+    $('bgColor').value = state.config.bgColor;
+    $('textColor').value = state.config.textColor;
+    $('accentColor').value = state.config.accentColor;
+    $('radius').value = state.config.radius;
+    $('align').value = state.config.align;
+    $('counterStyle').value = state.config.counterStyle || 'filled';
+    $('titleFont').value = state.config.titleFont || 'Inter';
+    $('bodyFont').value = state.config.bodyFont || 'Inter';
+    $('sizePreset').value = state.config.sizePreset || 'M';
+    $('customTitleSize').value = state.config.customTitleSize || 62;
+    $('customBodySize').value = state.config.customBodySize || 36;
+    $('customSizeWrap').style.display = (state.config.sizePreset === 'CUSTOM') ? 'block' : 'none';
+    $('brandType').value = state.config.brandType || 'personal';
+    $('themeMode').value = state.theme || 'dark';
+    $('creatorName').value = state.config.creatorName || '';
+    $('creatorHandle').value = state.config.creatorHandle || '';
+    $('creatorPosition').value = state.config.creatorPosition || 'bottom';
+    $('showCreator').checked = !!state.config.showCreator;
+    $('showOnlyIntroOutro').checked = !!state.config.showOnlyIntroOutro;
+    $('showSite').checked = !!state.config.showSite;
+    $('ctaVisibility').value = state.config.ctaVisibility || 'last';
+
+    if($('aiApiKey')) $('aiApiKey').value = state.ai.apiKey || '';
+    if($('aiModel')) $('aiModel').value = state.ai.model || '';
+    if($('aiRemember')) $('aiRemember').checked = !!state.ai.remember;
+    if($('aiStreaming')) $('aiStreaming').checked = state.ai.streaming !== false;
+  }
+
+  function bind(){
+    ['fTagline','fTitle','fParagraph','fCta'].forEach(id=>{
+      $(id).addEventListener('input', ()=>{
+        const s = state.slides[state.current];
+        s.tagline = $('fTagline').value;
+        s.title = $('fTitle').value;
+        s.paragraph = $('fParagraph').value;
+        s.cta = $('fCta').value;
+        render();
+      });
+    });
+
+    ['bgColor','textColor','accentColor','radius','align','counterStyle','titleFont','bodyFont','sizePreset','customTitleSize','customBodySize','brandType','ctaVisibility','ctaUrl'].forEach(id=>{
+      const apply = ()=>{
+        state.config.bgColor = $('bgColor').value;
+        state.config.textColor = $('textColor').value;
+        state.config.accentColor = $('accentColor').value;
+        state.config.radius = Number($('radius').value);
+        state.config.align = $('align').value;
+        state.config.counterStyle = $('counterStyle').value;
+        state.config.titleFont = $('titleFont').value;
+        state.config.bodyFont = $('bodyFont').value;
+        state.config.sizePreset = $('sizePreset').value;
+        state.config.customTitleSize = Number($('customTitleSize').value || 62);
+        state.config.customBodySize = Number($('customBodySize').value || 36);
+        $('customSizeWrap').style.display = (state.config.sizePreset === 'CUSTOM') ? 'block' : 'none';
+        state.config.brandType = $('brandType').value;
+        state.config.ctaVisibility = $('ctaVisibility').value;
+        state.config.ctaUrl = $('ctaUrl').value;
+        render();
+      };
+      $(id).addEventListener('input', apply);
+      $(id).addEventListener('change', apply);
+    });
+
+    $('themeMode').addEventListener('change', ()=>{
+      state.theme = $('themeMode').value;
+      applyTheme();
+      persist();
+    });
+
+    ['creatorName','creatorHandle'].forEach(id=>{
+      $(id).addEventListener('input', ()=>{
+        state.config.creatorName = $('creatorName').value;
+        state.config.creatorHandle = $('creatorHandle').value;
+        render();
+      });
+    });
+
+    ['showCreator','showOnlyIntroOutro','creatorPosition','showSite'].forEach(id=>{
+      $(id).addEventListener('change', ()=>{
+        state.config.showCreator = $('showCreator').checked;
+        state.config.showOnlyIntroOutro = $('showOnlyIntroOutro').checked;
+        state.config.creatorPosition = $('creatorPosition').value;
+        state.config.showSite = $('showSite').checked;
+        render();
+      });
+    });
+
+    $('creatorHeadshot').addEventListener('change', (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        state.config.creatorHeadshot = String(reader.result || '');
+        render();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const bindEditable = (id, apply) => {
+      const el = $(id);
+      el.addEventListener('input', ()=>{
+        apply(editableToText(el));
+        persist();
+      });
+      el.addEventListener('blur', ()=>{
+        syncForm();
+        render();
+      });
+    };
+
+    bindEditable('pTagline', (v)=>{
+      state.slides[state.current].tagline = v;
+      $('fTagline').value = v;
+    });
+    bindEditable('pTitle', (v)=>{
+      state.slides[state.current].title = v;
+      $('fTitle').value = v;
+    });
+    bindEditable('pParagraph', (v)=>{
+      state.slides[state.current].paragraph = v;
+      $('fParagraph').value = v;
+    });
+    bindEditable('pCta', (v)=>{
+      state.slides[state.current].cta = v;
+      $('fCta').value = v;
+    });
+    bindEditable('pCreatorName', (v)=>{
+      state.config.creatorName = v;
+      $('creatorName').value = v;
+    });
+    bindEditable('pCreatorHandle', (v)=>{
+      state.config.creatorHandle = v;
+      $('creatorHandle').value = v;
+    });
+
+    $('btnAdd').onclick = ()=>{
+      state.slides.splice(state.current+1,0,{tagline:'',title:'Novo slide',paragraph:'Edite aqui.',cta:'Acesse playvsl.com'});
+      state.current += 1;
+      syncForm(); render();
+    };
+
+    $('btnDelete').onclick = ()=>{
+      if(state.slides.length<=1) return;
+      state.slides.splice(state.current,1);
+      state.current = Math.max(0, state.current-1);
+      syncForm(); render();
+    };
+
+    $('btnSave').onclick = ()=>{
+      persist();
+      setStatus('Rascunho salvo localmente');
+    };
+
+    $('btnLoad').onclick = ()=>{
+      if(!hydrate()) return setStatus('Nenhum rascunho válido salvo');
+      if(!state.slides.length) state.slides = defaultSlides();
+      if(state.current >= state.slides.length) state.current = 0;
+      applyTheme();
+      syncForm(); render();
+      setStatus('Rascunho carregado');
+    };
+
+    $('btnGenerate').onclick = ()=>{
+      $('aiTopic').value = $('topic').value || '';
+      $('aiSlideCount').value = $('slideCount').value || '8';
+      $('aiApiKey').value = state.ai.apiKey || '';
+      $('aiModel').value = state.ai.model || 'gpt-5.1-mini';
+      $('aiRemember').checked = !!state.ai.remember;
+      $('aiStreaming').checked = state.ai.streaming !== false;
+      $('aiModal').style.display = 'flex';
+    };
+
+    $('btnAICancel').onclick = ()=> $('aiModal').style.display = 'none';
+    $('btnAIApply').onclick = async ()=>{
+      const prompt = $('aiPrompt').value.trim();
+      const topic = $('aiTopic').value.trim() || $('topic').value.trim() || 'Carrossel';
+      const n = Math.max(3, Math.min(15, Number($('aiSlideCount').value || 8)));
+
+      state.ai.apiKey = $('aiApiKey').value.trim();
+      state.ai.model = $('aiModel').value.trim() || state.ai.model;
+      state.ai.remember = $('aiRemember').checked;
+      state.ai.streaming = $('aiStreaming').checked;
+      if(!state.ai.remember){
+        state.ai.apiKey = '';
+        $('aiApiKey').value = '';
+      }
+
+      setStatus('Gerando slides...');
+      try {
+        const slides = state.ai.apiKey
+          ? await generateWithRealAI({ prompt, topic, n })
+          : generateFromInstructions(prompt, topic, n);
+
+        state.slides = slides;
+        state.current = 0;
+        $('topic').value = topic;
+        $('slideCount').value = String(n);
+        $('aiModal').style.display = 'none';
+        syncForm(); render();
+        setStatus(state.ai.apiKey ? 'Carrossel gerado por IA real' : 'Carrossel gerado por IA (assistida)');
+      } catch (err){
+        console.error(err);
+        setStatus('Falhou IA real; usei geração assistida local.');
+        state.slides = generateFromInstructions(prompt, topic, n);
+        state.current = 0;
+        $('topic').value = topic;
+        $('slideCount').value = String(n);
+        $('aiModal').style.display = 'none';
+        syncForm(); render();
+      }
+    };
+
+    $('btnImportOpen').onclick = ()=> $('importModal').style.display='flex';
+    $('btnImportCancel').onclick = ()=> $('importModal').style.display='none';
+
+    $('btnImportApply').onclick = ()=>{
+      const txt = $('importText').value;
+      const parsed = parseImport(txt);
+      if(!parsed.length){ setStatus('Importação falhou: formato não reconhecido'); return; }
+      state.slides = parsed;
+      state.current = 0;
+      $('importModal').style.display='none';
+      syncForm(); render();
+      setStatus('Importação aplicada');
+    };
+
+    $('btnExport').onclick = exportPdf;
+  }
+
+  function generateFromInstructions(prompt, topic, n){
+    const cleanPrompt = String(prompt || '').trim();
+    const cleanTopic = String(topic || '').trim() || 'Novo carrossel';
+    const keywords = cleanPrompt
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu,' ')
+      .split(/\s+/)
+      .filter(w => w.length > 3)
+      .slice(0, 18);
+
+    const slides = [];
+    slides.push({
+      tagline: 'Resumo prático',
+      title: cleanTopic,
+      paragraph: cleanPrompt ? cleanPrompt.slice(0, 140) : 'Comece com uma promessa clara de transformação.',
+      cta: 'Acesse playvsl.com'
+    });
+
+    for(let i=1;i<n-1;i++){
+      const k1 = keywords[(i*2-2) % Math.max(1, keywords.length)] || 'clareza';
+      const k2 = keywords[(i*2-1) % Math.max(1, keywords.length)] || 'ação';
+      slides.push({
+        tagline: '',
+        title: `Ponto ${i}: ${k1}`,
+        paragraph: `Explique ${k1} de forma simples e conecte com ${k2}.\nUse linguagem direta e aplicável.`,
+        cta: 'Acesse playvsl.com'
+      });
+    }
+
+    slides.push({
+      tagline: 'Próximo passo',
+      title: 'Agora aplique isso hoje',
+      paragraph: 'Escolha 1 ação concreta e execute nas próximas 24h.',
+      cta: 'Acesse playvsl.com'
+    });
+
+    return slides;
+  }
+
+  function extractSlidesPayload(text){
+    let payload;
+    try{
+      payload = JSON.parse(text);
+    } catch(_e){
+      const match = String(text || '').match(/\{[\s\S]*\}/);
+      if(!match) throw new Error('JSON inválido da IA');
+      payload = JSON.parse(match[0]);
+    }
+    const slides = Array.isArray(payload?.slides) ? payload.slides : [];
+    if(!slides.length) throw new Error('IA retornou sem slides');
+    return slides;
+  }
+
+  async function generateWithRealAI({ prompt, topic, n }){
+    const instructions = `Você cria carrosséis em português para LinkedIn (4:5). Responda APENAS JSON válido no formato: {"slides":[{"tagline":"","title":"","paragraph":"","cta":""}]}. Gere exatamente ${n} slides. Slide 1 = intro, último = fechamento com CTA. Texto objetivo, legível e direto.`;
+    const inputText = `Tópico: ${topic}\nInstruções do usuário: ${prompt || '(sem instruções adicionais)'}`;
+
+    const baseBody = {
+      model: state.ai.model,
+      instructions,
+      input: inputText,
+      temperature: 0.7
+    };
+
+    let content = '';
+
+    if(state.ai.streaming){
+      const res = await fetch(OPENAI_RESPONSES_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.ai.apiKey}`
+        },
+        body: JSON.stringify({ ...baseBody, stream: true })
+      });
+      if(!res.ok) throw new Error(`AI HTTP ${res.status}`);
+      if(!res.body) throw new Error('Sem stream no navegador');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while(true){
+        const { done, value } = await reader.read();
+        if(done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+        for(const evt of events){
+          const lines = evt.split('\n').filter(Boolean);
+          for(const line of lines){
+            if(!line.startsWith('data:')) continue;
+            const dataStr = line.slice(5).trim();
+            if(!dataStr || dataStr === '[DONE]') continue;
+            try{
+              const ev = JSON.parse(dataStr);
+              if(ev.type === 'response.output_text.delta' && ev.delta) content += ev.delta;
+              if(ev.type === 'response.completed' && Array.isArray(ev.response?.output)){
+                const parts = ev.response.output.flatMap(o => o.content || []);
+                const text = parts.filter(p => p.type === 'output_text').map(p => p.text).join('');
+                if(text) content = text;
+              }
+            } catch(_e){}
+          }
+        }
+      }
+    } else {
+      const res = await fetch(OPENAI_RESPONSES_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.ai.apiKey}`
+        },
+        body: JSON.stringify(baseBody)
+      });
+      if(!res.ok) throw new Error(`AI HTTP ${res.status}`);
+      const data = await res.json();
+      content = data?.output_text || '';
+      if(!content && Array.isArray(data?.output)){
+        content = data.output.flatMap(o => o.content || []).filter(p => p.type === 'output_text').map(p => p.text).join('');
+      }
+    }
+
+    const slides = extractSlidesPayload(content);
+    return slides.slice(0,n).map((s,idx)=>({
+      tagline: String(s?.tagline || (idx===0 ? 'Resumo prático' : '')).trim(),
+      title: String(s?.title || `Slide ${idx+1}`).trim(),
+      paragraph: String(s?.paragraph || '').trim(),
+      cta: String(s?.cta || 'Acesse playvsl.com').trim()
+    }));
+  }
+
+  function parseImport(text){
+    const blocks = text.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+    const slides = [];
+    let current = null;
+
+    const flush = ()=>{
+      if(current && (current.title || current.paragraph || current.tagline)){
+        current.cta = current.cta || 'Acesse playvsl.com';
+        slides.push(current);
+      }
+    };
+
+    for(const block of blocks){
+      const firstLine = block.split('\n')[0].trim();
+      if(/^\[(intro|slide\s*\d+|outro)\]/i.test(firstLine)){
+        flush();
+        current = { tagline:'', title:'', paragraph:'', cta:'Acesse playvsl.com' };
+      }
+
+      if(!current) current = { tagline:'', title:'', paragraph:'', cta:'Acesse playvsl.com' };
+
+      block.split('\n').forEach(line=>{
+        const l = line.trim();
+        if(/^tagline\s*:/i.test(l)) current.tagline = l.replace(/^tagline\s*:/i,'').trim();
+        else if(/^title\s*:/i.test(l)) current.title = l.replace(/^title\s*:/i,'').trim();
+        else if(/^paragraph\s*:/i.test(l)) current.paragraph = l.replace(/^paragraph\s*:/i,'').trim();
+        else if(/^cta\s*:/i.test(l)) current.cta = l.replace(/^cta\s*:/i,'').trim();
+      });
+    }
+    flush();
+    return slides;
+  }
+
+  async function exportPdf(){
+    try{
+      if(!window.html2canvas){
+        throw new Error('html2canvas não carregado');
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:'portrait', unit:'px', format:[1080,1350] });
+      const previewEl = $('preview');
+      const originalIndex = state.current;
+
+      for(let i=0;i<state.slides.length;i++){
+        state.current = i;
+        syncForm();
+        render();
+        setStatus(`Renderizando slide ${i+1}/${state.slides.length}...`);
+
+        await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+        const canvas = await html2canvas(previewEl, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: null
+        });
+
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        if(i>0) pdf.addPage([1080,1350], 'portrait');
+        pdf.addImage(imgData, 'PNG', 0, 0, 1080, 1350, undefined, 'FAST');
+
+        const s = state.slides[i] || {};
+        const ctaText = String(s.cta || '').trim();
+        const ctaByConfig = state.config.ctaVisibility === 'all' || i === state.slides.length - 1;
+        const showCta = ctaByConfig && !!ctaText;
+        const ctaUrl = normalizeUrl(state.config.ctaUrl || '');
+        if(showCta && ctaUrl){
+          // link apenas na área real do botão CTA (evita comportamento estranho no PDF)
+          const ctaEl = $('pCta');
+          const ctaStyle = window.getComputedStyle(ctaEl);
+          if(ctaStyle.display !== 'none'){
+            const ctaRect = ctaEl.getBoundingClientRect();
+            const cardRect = previewEl.getBoundingClientRect();
+            const scaleX = 1080 / cardRect.width;
+            const scaleY = 1350 / cardRect.height;
+            const x = (ctaRect.left - cardRect.left) * scaleX;
+            const y = (ctaRect.top - cardRect.top) * scaleY;
+            const w = ctaRect.width * scaleX;
+            const h = ctaRect.height * scaleY;
+            pdf.link(x, y, w, h, { url: ctaUrl });
+          }
+        }
+      }
+
+      state.current = originalIndex;
+      syncForm();
+      render();
+      pdf.save('carousel-export.pdf');
+      setStatus('PDF exportado (via screenshot da tela)');
+    } catch (e){
+      console.error(e);
+      setStatus('Erro ao exportar PDF');
+    }
+  }
+
+  function init(){
+    const hasSaved = hydrate();
+    if(!hasSaved || !state.slides.length) state.slides = defaultSlides();
+    if(state.current >= state.slides.length) state.current = 0;
+    if(!state.ai.remember) state.ai.apiKey = '';
+
+    if(window.Coloris){
+      Coloris({
+        el: '[data-coloris]',
+        themeMode: state.theme === 'light' ? 'light' : 'dark',
+        alpha: false,
+        format: 'hex'
+      });
+    }
+
+    initAccordions();
+    bind();
+    renderPalette();
+    applyTheme();
+    syncForm();
+    render();
+  }
+
+  init();
+</script>
+</body>
+</html>
