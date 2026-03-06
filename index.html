@@ -373,11 +373,23 @@
           <button id="btnGenerateCaption" class="btn-primary">Gerar legenda com IA</button>
           <button id="btnCopyCaption" class="btn-ghost">Copiar legenda</button>
         </div>
-        <textarea id="postCaption" style="min-height:430px" placeholder="Escreva ou gere sua legenda..."></textarea>
+        <textarea id="postCaption" style="min-height:360px" placeholder="Escreva ou gere sua legenda..."></textarea>
         <div class="row" style="margin-top:8px">
           <input id="postPrompt" placeholder="Instrução extra para IA (tom, objetivo, CTA)..." />
           <button id="btnRefineCaption" class="btn-ghost">Refinar</button>
         </div>
+        <label style="margin-top:10px">Mídia do post</label>
+        <select id="postMediaMode">
+          <option value="none">Sem mídia</option>
+          <option value="pdf">Carrossel em PDF (baixar e anexar)</option>
+          <option value="image">Imagem única (escolher arquivo)</option>
+        </select>
+        <input id="postImageFile" type="file" accept="image/*" style="display:none;margin-top:8px" />
+        <div class="row" style="margin-top:8px">
+          <button id="btnPreparePdf" class="btn-ghost">Gerar/baixar PDF</button>
+          <button id="btnPreparePost" class="btn-ghost">Preparar publicação</button>
+        </div>
+        <div class="muted" id="postMediaHint" style="margin-top:6px">Você pode publicar só texto ou anexar mídia manualmente.</div>
       </div>
       <div class="post-box">
         <div class="muted" style="margin-bottom:6px">Prévia do post</div>
@@ -946,13 +958,23 @@
       $('postAvatar').textContent = getInitials(state.config.creatorName || 'U');
     };
 
+    const refreshPostMediaUI = ()=>{
+      const mode = $('postMediaMode').value;
+      $('postImageFile').style.display = mode === 'image' ? 'block' : 'none';
+      if(mode === 'pdf') $('postMediaHint').textContent = 'Ao preparar, o app baixa o PDF e você anexa no LinkedIn.';
+      else if(mode === 'image') $('postMediaHint').textContent = 'Escolha uma imagem e anexe no LinkedIn ao publicar.';
+      else $('postMediaHint').textContent = 'Você pode publicar só texto ou anexar mídia manualmente.';
+    };
+
     $('btnPostComposer').onclick = ()=>{
       if(!$('postCaption').value.trim()){
         $('postCaption').value = localCaptionFallback();
       }
       $('liAccessToken').value = state.linkedin.accessToken || '';
       $('liAuthorUrn').value = state.linkedin.authorUrn || '';
+      if(!$('postMediaMode').value) $('postMediaMode').value = 'none';
       refreshPostPreview();
+      refreshPostMediaUI();
       $('postModal').style.display = 'flex';
     };
     $('btnPostModalClose').onclick = ()=> $('postModal').style.display = 'none';
@@ -987,6 +1009,25 @@
       setStatus('Legenda refinada');
     };
 
+    $('postMediaMode').addEventListener('change', refreshPostMediaUI);
+
+    $('btnPreparePdf').onclick = async ()=>{
+      setStatus('Gerando PDF para anexo...');
+      await exportPdf();
+      setStatus('PDF pronto. Anexe no LinkedIn ao publicar.');
+    };
+
+    $('btnPreparePost').onclick = async ()=>{
+      const mode = $('postMediaMode').value;
+      await navigator.clipboard.writeText($('postCaption').value || '');
+      if(mode === 'pdf'){
+        await exportPdf();
+        setStatus('Legenda copiada + PDF baixado.');
+      } else {
+        setStatus('Legenda copiada.');
+      }
+    };
+
     $('btnValidateLinkedin').onclick = async ()=>{
       state.linkedin.accessToken = $('liAccessToken').value.trim();
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
@@ -1017,10 +1058,14 @@
       state.linkedin.accessToken = $('liAccessToken').value.trim();
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
       persist();
+      const mode = $('postMediaMode').value;
       setStatus('Publicando no LinkedIn...');
       try{
         await postToLinkedin();
-        $('liStatus').textContent = 'Post publicado com sucesso.';
+        $('liStatus').textContent = 'Post de texto publicado com sucesso.';
+        if(mode !== 'none'){
+          $('liStatus').textContent += ' Mídia: anexe manualmente no LinkedIn (PDF/Imagem).';
+        }
         setStatus('Publicado no LinkedIn');
       } catch(err){
         $('liStatus').textContent = 'Erro ao publicar: ' + err.message;
