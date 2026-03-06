@@ -460,6 +460,7 @@
       clientId: '',
       redirectUri: '',
       accessToken: '',
+      idToken: '',
       authorUrn: ''
     },
     config: {
@@ -1096,18 +1097,29 @@
       state.linkedin.clientId = $('liClientId').value.trim();
       state.linkedin.redirectUri = $('liRedirectUri').value.trim();
       state.linkedin.accessToken = extractAccessToken($('liAccessToken').value);
+      state.linkedin.idToken = extractIdToken($('liAccessToken').value);
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
       $('liAccessToken').value = state.linkedin.accessToken;
       persist();
       $('liStatus').textContent = 'Validando token...';
       try{
-        const data = await validateLinkedinToken();
+        const result = await validateLinkedinToken();
         $('liAuthorUrn').value = state.linkedin.authorUrn || '';
         persist();
-        $('liStatus').textContent = `Token OK · ${data?.name || data?.email || 'usuário autenticado'}`;
+        if(result.source === 'api'){
+          const data = result.data || {};
+          $('liStatus').textContent = `Token OK (API) · ${data?.name || data?.email || 'usuário autenticado'}`;
+        } else {
+          $('liStatus').textContent = 'Token aceito (fallback id_token).';
+        }
         setStatus('LinkedIn conectado');
       } catch(err){
-        $('liStatus').textContent = 'Falha na validação: ' + err.message;
+        const msg = String(err?.message || err);
+        if(msg.includes('Failed to fetch')){
+          $('liStatus').textContent = 'Falha de rede/CORS no browser. Cole também a resposta completa com id_token para validar localmente.';
+        } else {
+          $('liStatus').textContent = 'Falha na validação: ' + msg;
+        }
         setStatus('Falha ao validar LinkedIn');
       }
     };
@@ -1116,6 +1128,7 @@
       state.linkedin.clientId = '';
       state.linkedin.redirectUri = '';
       state.linkedin.accessToken = '';
+      state.linkedin.idToken = '';
       state.linkedin.authorUrn = '';
       $('liClientId').value = '';
       $('liRedirectUri').value = location.origin + location.pathname;
@@ -1129,6 +1142,7 @@
       state.linkedin.clientId = $('liClientId').value.trim();
       state.linkedin.redirectUri = $('liRedirectUri').value.trim();
       state.linkedin.accessToken = extractAccessToken($('liAccessToken').value);
+      state.linkedin.idToken = extractIdToken($('liAccessToken').value);
       state.linkedin.authorUrn = $('liAuthorUrn').value.trim();
       $('liAccessToken').value = state.linkedin.accessToken;
       persist();
@@ -1365,6 +1379,29 @@
     return v;
   }
 
+  function extractIdToken(raw=''){
+    const v = String(raw || '').trim();
+    if(!v) return '';
+    try{
+      const obj = JSON.parse(v.startsWith('{') ? v : ('{' + v));
+      return String(obj.id_token || '').trim();
+    } catch(_e) {}
+    const m = v.match(/"id_token"\s*:\s*"([^"]+)"/);
+    return m ? m[1].trim() : '';
+  }
+
+  function decodeJwtPayload(token=''){
+    try{
+      const parts = String(token).split('.');
+      if(parts.length < 2) return null;
+      const b64 = parts[1].replace(/-/g,'+').replace(/_/g,'/');
+      const json = decodeURIComponent(atob(b64).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2,'0')).join(''));
+      return JSON.parse(json);
+    } catch(_e){
+      return null;
+    }
+  }
+
   function buildLinkedinTokenCurl(code){
     const clientId = (state.linkedin.clientId || '').trim();
     const redirectUri = (state.linkedin.redirectUri || '').trim();
@@ -1398,12 +1435,22 @@
   }
 
   async function validateLinkedinToken(){
-    const data = await linkedinApi('/v2/userinfo', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
-    const personId = data?.sub || '';
-    if(personId && !state.linkedin.authorUrn){
-      state.linkedin.authorUrn = `urn:li:person:${personId}`;
+    try{
+      const data = await linkedinApi('/v2/userinfo', { method: 'GET' });
+      const personId = data?.sub || '';
+      if(personId && !state.linkedin.authorUrn){
+        state.linkedin.authorUrn = `urn:li:person:${personId}`;
+      }
+      return { source:'api', data };
+    } catch(err){
+      const jwt = decodeJwtPayload(state.linkedin.idToken || '');
+      const personId = jwt?.sub || '';
+      if(personId){
+        if(!state.linkedin.authorUrn) state.linkedin.authorUrn = `urn:li:person:${personId}`;
+        return { source:'id_token', data: jwt };
+      }
+      throw err;
     }
-    return data;
   }
 
   async function postToLinkedin(){
