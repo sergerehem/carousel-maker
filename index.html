@@ -349,7 +349,7 @@
       <div class="row">
         <div>
           <label>Modelo</label>
-          <input id="aiModel" value="gpt-5.1-mini" />
+          <input id="aiModel" value="gpt-5-mini" />
         </div>
       </div>
       <label><input id="aiRemember" type="checkbox" checked /> Salvar credenciais no navegador local</label>
@@ -452,7 +452,7 @@
     theme: 'dark',
     ai: {
       apiKey: '',
-      model: 'gpt-5.1-mini',
+      model: 'gpt-5-mini',
       remember: true,
       streaming: true
     },
@@ -493,6 +493,7 @@
 
   const $ = (id) => document.getElementById(id);
   const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
+  const OPENAI_MODEL_FALLBACKS = ['gpt-5-mini','gpt-4.1-mini'];
   const COMMON_PALETTES = [
     ['#ffffff','#111827','#1d4ed8'],
     ['#f5f3ff','#1e1b4b','#4f46e5'],
@@ -929,7 +930,7 @@
       $('aiTopic').value = $('topic').value || '';
       $('aiSlideCount').value = $('slideCount').value || '8';
       $('aiApiKey').value = state.ai.apiKey || '';
-      $('aiModel').value = state.ai.model || 'gpt-5.1-mini';
+      $('aiModel').value = state.ai.model || 'gpt-5-mini';
       $('aiRemember').checked = !!state.ai.remember;
       $('aiStreaming').checked = state.ai.streaming !== false;
       $('aiModal').style.display = 'flex';
@@ -1231,7 +1232,19 @@
     return slides;
   }
 
-  async function generateWithRealAI({ prompt, topic, n }){
+  function parseModelNotFound(details){
+    try{
+      const j = JSON.parse(details || '{}');
+      return j?.error?.code === 'model_not_found';
+    }catch(_e){ return false; }
+  }
+
+  function pickFallbackModel(current){
+    const normalized = String(current || '').trim();
+    return OPENAI_MODEL_FALLBACKS.find(m => m !== normalized) || null;
+  }
+
+  async function generateWithRealAI({ prompt, topic, n, _retriedModel=false }){
     const instructions = `Você cria carrosséis em português para LinkedIn (4:5). Responda APENAS JSON válido no formato: {"slides":[{"tagline":"","title":"","paragraph":"","cta":""}]}. Gere exatamente ${n} slides. Slide 1 = intro, último = fechamento com CTA. Texto objetivo, legível e direto.`;
     const inputText = `Tópico: ${topic}\nInstruções do usuário: ${prompt || '(sem instruções adicionais)'}`;
 
@@ -1255,6 +1268,15 @@
       if(!res.ok){
         let details = '';
         try{ details = await res.text(); }catch(_e){}
+        if(parseModelNotFound(details) && !_retriedModel){
+          const fallback = pickFallbackModel(state.ai.model);
+          if(fallback){
+            state.ai.model = fallback;
+            if($('aiModel')) $('aiModel').value = fallback;
+            saveState();
+            return generateWithRealAI({ prompt, topic, n, _retriedModel:true });
+          }
+        }
         throw new Error(`AI HTTP ${res.status}${details ? ` - ${details}` : ''}`);
       }
       if(!res.body) throw new Error('Sem stream no navegador');
@@ -1300,6 +1322,15 @@
       if(!res.ok){
         let details = '';
         try{ details = await res.text(); }catch(_e){}
+        if(parseModelNotFound(details) && !_retriedModel){
+          const fallback = pickFallbackModel(state.ai.model);
+          if(fallback){
+            state.ai.model = fallback;
+            if($('aiModel')) $('aiModel').value = fallback;
+            saveState();
+            return generateWithRealAI({ prompt, topic, n, _retriedModel:true });
+          }
+        }
         throw new Error(`AI HTTP ${res.status}${details ? ` - ${details}` : ''}`);
       }
       const data = await res.json();
@@ -1332,7 +1363,7 @@
     return `${hook}\n\nA maioria dos posts falha nos primeiros segundos.\nNão por falta de conteúdo, mas por falta de abertura forte.\n\nNeste carrossel eu mostro o framework que usamos para prender atenção e levar até o CTA.\n\n${extra ? 'Contexto: ' + extra + '\n\n' : ''}Quer a estrutura pronta? ${cta}`;
   }
 
-  async function generateLinkedinCaption(extraInstruction=''){
+  async function generateLinkedinCaption(extraInstruction='', _retriedModel=false){
     if(!state.ai.apiKey) return localCaptionFallback(extraInstruction);
 
     const instructions = `Você é especialista em LinkedIn. Gere legenda em PT-BR com hook forte nas 2 primeiras linhas, dor/agitação/solução, sem clickbait barato. Máx 1200 caracteres. Tom direto. Termine com CTA. Retorne apenas texto puro.`;
@@ -1356,6 +1387,15 @@
     if(!res.ok){
       let details = '';
       try{ details = await res.text(); }catch(_e){}
+      if(parseModelNotFound(details) && !_retriedModel){
+        const fallback = pickFallbackModel(state.ai.model);
+        if(fallback){
+          state.ai.model = fallback;
+          if($('aiModel')) $('aiModel').value = fallback;
+          saveState();
+          return generateLinkedinCaption(extraInstruction, true);
+        }
+      }
       throw new Error(`Caption HTTP ${res.status}${details ? ` - ${details}` : ''}`);
     }
     const data = await res.json();
