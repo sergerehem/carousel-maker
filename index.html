@@ -1273,7 +1273,7 @@
           if(fallback){
             state.ai.model = fallback;
             if($('aiModel')) $('aiModel').value = fallback;
-            saveState();
+            persist();
             return generateWithRealAI({ prompt, topic, n, _retriedModel:true });
           }
         }
@@ -1327,7 +1327,7 @@
           if(fallback){
             state.ai.model = fallback;
             if($('aiModel')) $('aiModel').value = fallback;
-            saveState();
+            persist();
             return generateWithRealAI({ prompt, topic, n, _retriedModel:true });
           }
         }
@@ -1392,7 +1392,7 @@
         if(fallback){
           state.ai.model = fallback;
           if($('aiModel')) $('aiModel').value = fallback;
-          saveState();
+          persist();
           return generateLinkedinCaption(extraInstruction, true);
         }
       }
